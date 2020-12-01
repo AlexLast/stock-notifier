@@ -73,7 +73,7 @@ func (c *Context) CheckOverclockers(filter Filter, matches *[]Product, cPage, fP
 	// If there are further pages we need to recurse
 	if cPage <= fPage {
 		// Sleep between pages for 2 seconds
-		time.Sleep(time.Duration(ebuyerSleep) * time.Second)
+		time.Sleep(time.Duration(overclockersSleep) * time.Second)
 
 		// Call this function recursively
 		_, err := c.CheckOverclockers(filter, matches, cPage, fPage)

@@ -109,6 +109,7 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 
 		if err != nil {
 			log.Errorln(err)
+			continue
 		}
 
 		// If we matched some products, log them
