@@ -7,6 +7,7 @@ import (
 	"github.com/alexlast/stock-notifier/internal/notifier"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/kelseyhightower/envconfig"
 	log "github.com/sirupsen/logrus"
@@ -50,6 +51,7 @@ func main() {
 
 	// Build new clients
 	c := &notifier.Context{
+		SES:    ses.New(session),
 		SNS:    sns.New(session),
 		HTTP:   http.DefaultClient,
 		Config: config,

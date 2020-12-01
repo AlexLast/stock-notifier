@@ -9,6 +9,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go/service/ses/sesiface"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 	log "github.com/sirupsen/logrus"
@@ -46,22 +48,24 @@ type FilterDecoder []Filter
 // Notify defines the configuration
 // for who should be notified
 type Notify struct {
-	Email string `json:"email"`
-	Phone string `json:"phone"`
+	Email *string `json:"email"`
+	Phone *string `json:"phone"`
 }
 
 // Config defines the configuration
 // for notifier
 type Config struct {
-	Notify    Notify        `required:"true"`
-	LogLevel  string        `split_words:"true"`
-	AWSRegion string        `required:"true" envconfig:"AWS_REGION"`
-	Filters   FilterDecoder `required:"true"`
+	Notify      Notify        `required:"true"`
+	Filters     FilterDecoder `required:"true"`
+	LogLevel    string        `split_words:"true"`
+	AWSRegion   string        `required:"true" envconfig:"AWS_REGION"`
+	FromAddress string        `required:"true" split_words:"true"`
 }
 
 // Context defines the notifier
 // context
 type Context struct {
+	SES    sesiface.SESAPI
 	SNS    snsiface.SNSAPI
 	HTTP   *http.Client
 	Config *Config
@@ -239,23 +243,55 @@ func (c *Context) SendNotification(retailer string, matches []Product) error {
 		// Build the message
 		message := fmt.Sprintf(smsFormat, retailer, strings.Join(notifications, "\n\n"))
 
-		// Send the SMS message
-		_, err := c.SNS.Publish(&sns.PublishInput{
-			Message:     aws.String(message),
-			PhoneNumber: aws.String(c.Config.Notify.Phone),
-			MessageAttributes: map[string]*sns.MessageAttributeValue{
-				"AWS.SNS.SMS.SenderID": {
-					DataType:    aws.String("String"),
-					StringValue: aws.String(smsFromName),
-				},
-				"AWS.SNS.SMS.SMSType": {
-					DataType:    aws.String("String"),
-					StringValue: aws.String("Transactional"),
-				},
-			},
-		})
+		var smsErr error
+		var emailErr error
 
-		return err
+		if c.Config.Notify.Phone != nil {
+			// Send the SMS
+			_, smsErr = c.SNS.Publish(&sns.PublishInput{
+				Message:     aws.String(message),
+				PhoneNumber: c.Config.Notify.Phone,
+				MessageAttributes: map[string]*sns.MessageAttributeValue{
+					"AWS.SNS.SMS.SenderID": {
+						DataType:    aws.String("String"),
+						StringValue: aws.String(smsFromName),
+					},
+					"AWS.SNS.SMS.SMSType": {
+						DataType:    aws.String("String"),
+						StringValue: aws.String("Transactional"),
+					},
+				},
+			})
+		}
+
+		if c.Config.Notify.Email != nil {
+			// Send the email
+			_, emailErr = c.SES.SendEmail(&ses.SendEmailInput{
+				Destination: &ses.Destination{
+					ToAddresses: []*string{c.Config.Notify.Email},
+				},
+				Message: &ses.Message{
+					Body: &ses.Body{
+						Text: &ses.Content{
+							Charset: aws.String("UTF-8"),
+							Data:    aws.String(message),
+						},
+					},
+					Subject: &ses.Content{
+						Charset: aws.String("UTF-8"),
+						Data:    aws.String("New alert from stock-notifier"),
+					},
+				},
+				Source: aws.String(c.Config.FromAddress),
+			})
+		}
+
+		// Ensure neither of these channels errored
+		for _, err := range []error{smsErr, emailErr} {
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

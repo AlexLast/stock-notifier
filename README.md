@@ -11,6 +11,7 @@ Supported retailers:
 
 Supported notification channels:
 - SMS via AWS SNS
+- Email via AWS SES
 
 Example filters configuration:
 
