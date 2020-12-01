@@ -82,6 +82,7 @@ func (c *Context) Start() {
 	for _, filter := range c.Config.Filters {
 		go c.PollRetailer("Ebuyer", filter)
 		go c.PollRetailer("Overclockers", filter)
+		go c.PollRetailer("Novatech", filter)
 	}
 
 	// Block main thread waiting for our channel
@@ -105,6 +106,8 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 			matches, err = c.CheckEbuyer(filter, &[]Product{}, 1, 1)
 		case "Overclockers":
 			matches, err = c.CheckOverclockers(filter, &[]Product{}, 1, 1)
+		case "Novatech":
+			matches, err = c.CheckNovatech(filter, &[]Product{}, 1, 1)
 		}
 
 		if err != nil {
