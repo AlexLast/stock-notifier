@@ -17,12 +17,14 @@ const (
 )
 
 // CheckOverclockers will check Overclockers for the specified filter
-func (c *Context) CheckOverclockers(filter Filter, matches *[]Product, cPage, fPage int) ([]Product, error) {
+func (c *Context) CheckOverclockers(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
+	response := Response{}
+
 	// Get the page contents and our goquery document
 	page, err := c.getPage(fmt.Sprintf(overclockersSearch, url.QueryEscape(filter.Term), cPage))
 
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	// Get the pagination HTML and determine
@@ -43,6 +45,9 @@ func (c *Context) CheckOverclockers(filter Filter, matches *[]Product, cPage, fP
 		title := data.Find("span.ProductTitle").Text()
 		title = strings.ReplaceAll(title, "\n", "")
 		title = strings.ReplaceAll(title, `"`, "")
+
+		// Increment parsed count
+		response.Parsed++
 
 		// Build our product
 		product := Product{
@@ -79,9 +84,11 @@ func (c *Context) CheckOverclockers(filter Filter, matches *[]Product, cPage, fP
 		_, err := c.CheckOverclockers(filter, matches, cPage, fPage)
 
 		if err != nil {
-			return nil, err
+			return response, err
 		}
 	}
 
-	return *matches, nil
+	response.Matches = *matches
+
+	return response, nil
 }

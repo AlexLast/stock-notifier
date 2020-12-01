@@ -17,12 +17,14 @@ const (
 )
 
 // CheckEbuyer will check Ebuyer for the specified filter
-func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage int) ([]Product, error) {
+func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
+	response := Response{}
+
 	// Get the page contents and our goquery document
 	page, err := c.getPage(fmt.Sprintf(ebuyerSearch, url.QueryEscape(filter.Term), cPage))
 
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	// Get the pagination HTML and determine
@@ -40,6 +42,10 @@ func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage in
 	// the fields we want to filter on
 	products := page.Find("div.listing-product")
 	products.Each(func(i int, data *goquery.Selection) {
+		// Increment parsed count
+		response.Parsed++
+
+		// Build our product
 		product := Product{
 			Name: data.Find("h3.listing-product-title").Text(),
 		}
@@ -75,9 +81,11 @@ func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage in
 		_, err := c.CheckEbuyer(filter, matches, cPage, fPage)
 
 		if err != nil {
-			return nil, err
+			return response, err
 		}
 	}
 
-	return *matches, nil
+	response.Matches = *matches
+
+	return response, nil
 }

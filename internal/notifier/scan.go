@@ -15,12 +15,14 @@ const (
 )
 
 // CheckScan will check Scan for the specified filter
-func (c *Context) CheckScan(filter Filter) ([]Product, error) {
+func (c *Context) CheckScan(filter Filter) (Response, error) {
+	response := Response{}
+
 	// Get the page contents and our goquery document
 	page, err := c.getPage(fmt.Sprintf(scanSearch, url.QueryEscape(filter.Term)))
 
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	// Slice of matches
@@ -31,6 +33,10 @@ func (c *Context) CheckScan(filter Filter) ([]Product, error) {
 	products := page.Find("ul.productColumns")
 	products.Each(func(i int, column *goquery.Selection) {
 		column.Find("li.product").Each(func(i int, data *goquery.Selection) {
+			// Increment parsed count
+			response.Parsed++
+
+			// Build our product
 			product := Product{
 				Name: data.Find("span.description").Text(),
 			}
@@ -56,5 +62,7 @@ func (c *Context) CheckScan(filter Filter) ([]Product, error) {
 		})
 	})
 
-	return matches, nil
+	response.Matches = matches
+
+	return response, nil
 }

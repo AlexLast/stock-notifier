@@ -31,6 +31,14 @@ type Product struct {
 	Price float64
 }
 
+// Response defines the structure
+// for a response wrapper all retailers
+// will return that includes metadata
+type Response struct {
+	Matches []Product
+	Parsed  int
+}
+
 // FilterDecoder is a type
 // used for an envconfig custom decoder
 type FilterDecoder []Filter
@@ -99,18 +107,18 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 
 		// Slice of matched products
 		var err error
-		var matches []Product
+		var response Response
 
 		// Check the retailers for stock
 		switch retailer {
 		case "Ebuyer":
-			matches, err = c.CheckEbuyer(filter, &[]Product{}, 1, 1)
+			response, err = c.CheckEbuyer(filter, &[]Product{}, 1, 1)
 		case "Overclockers":
-			matches, err = c.CheckOverclockers(filter, &[]Product{}, 1, 1)
+			response, err = c.CheckOverclockers(filter, &[]Product{}, 1, 1)
 		case "Novatech":
-			matches, err = c.CheckNovatech(filter, &[]Product{}, 1, 1)
+			response, err = c.CheckNovatech(filter, &[]Product{}, 1, 1)
 		case "Scan":
-			matches, err = c.CheckScan(filter)
+			response, err = c.CheckScan(filter)
 		}
 
 		if err != nil {
@@ -118,13 +126,16 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 			continue
 		}
 
+		// Log some useful information
+		log.Debugf("%s poll for %s parsed %d products, %d matched the filter", retailer, filter.Term, response.Parsed, len(response.Matches))
+
 		// If we matched some products, log them
-		for _, product := range matches {
+		for _, product := range response.Matches {
 			log.Infof("%s has stock for %s, product: %s", retailer, filter.Term, product.Name)
 		}
 
 		// Send notifications
-		err = c.SendNotification(retailer, matches)
+		err = c.SendNotification(retailer, response.Matches)
 
 		if err != nil {
 			log.Errorf("Unable to send notification, error: %v", err)

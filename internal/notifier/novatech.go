@@ -17,12 +17,14 @@ const (
 )
 
 // CheckNovatech will check Novatech for the specified filter
-func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage int) ([]Product, error) {
+func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
+	response := Response{}
+
 	// Get the page contents and our goquery document
 	page, err := c.getPage(fmt.Sprintf(novatechSearch, url.QueryEscape(filter.Term), cPage))
 
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	// Get the pagination HTML and determine
@@ -41,6 +43,9 @@ func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage 
 	products.Each(func(i int, data *goquery.Selection) {
 		title := data.Find("div.search-box-title").Text()
 		title = strings.ReplaceAll(title, "\n", "")
+
+		// Increment parsed count
+		response.Parsed++
 
 		// Build our product
 		product := Product{
@@ -77,9 +82,11 @@ func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage 
 		_, err := c.CheckNovatech(filter, matches, cPage, fPage)
 
 		if err != nil {
-			return nil, err
+			return response, err
 		}
 	}
 
-	return *matches, nil
+	response.Matches = *matches
+
+	return response, nil
 }
