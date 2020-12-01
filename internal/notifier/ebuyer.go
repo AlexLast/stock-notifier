@@ -12,14 +12,13 @@ import (
 )
 
 const (
+	ebuyerSleep  = 2
 	ebuyerSearch = "https://www.ebuyer.com/search?q=%s&page=%d"
 )
 
 // CheckEbuyer will check Ebuyer for the specified filter
 func (c *Context) CheckEbuyer(filter Filter) ([]Product, error) {
 	// Initial values for pagination
-	// unfortunately we cant modify the Ebuyer
-	// result size
 	cPage := 1
 	fPage := cPage
 
@@ -74,8 +73,8 @@ func (c *Context) CheckEbuyer(filter Filter) ([]Product, error) {
 			}
 		})
 
-		// Sleep between pages for 3 seconds
-		time.Sleep(time.Duration(2) * time.Second)
+		// Sleep between pages for 2 seconds
+		time.Sleep(time.Duration(ebuyerSleep) * time.Second)
 		cPage++
 	}
 

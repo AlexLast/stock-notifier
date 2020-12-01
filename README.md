@@ -34,3 +34,7 @@ Example filters configuration:
     }
 ]
 ```
+
+To do:
+- Add more UK retailers
+- Include direct link to product in notifications

@@ -61,7 +61,7 @@ type Context struct {
 
 const (
 	smsFromName     = "Stock"
-	smsFormat       = "The following products were found on ebuyer: \n\n%s"
+	smsFormat       = "The following products were found on %s: \n\n%s"
 	cacheKeyFormat  = "%s:%s:%f"
 	cacheTimeToLive = int64(86400)
 )
@@ -219,7 +219,7 @@ func (c *Context) SendNotification(retailer string, matches []Product) error {
 	// products to alert on
 	if len(notifications) > 0 {
 		// Build the message
-		message := fmt.Sprintf(smsFormat, strings.Join(notifications, "\n\n"))
+		message := fmt.Sprintf(smsFormat, retailer, strings.Join(notifications, "\n\n"))
 
 		// Send the SMS message
 		_, err := c.SNS.Publish(&sns.PublishInput{
