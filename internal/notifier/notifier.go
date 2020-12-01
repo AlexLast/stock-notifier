@@ -97,14 +97,14 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 
 		// Slice of matched products
 		var err error
-		var matched []Product
+		var matches []Product
 
 		// Check the retailers for stock
 		switch retailer {
 		case "Ebuyer":
-			matched, err = c.CheckEbuyer(filter)
+			matches, err = c.CheckEbuyer(filter, &[]Product{}, 1, 1)
 		case "Overclockers":
-			matched, err = c.CheckOverclockers(filter)
+			matches, err = c.CheckOverclockers(filter, &[]Product{}, 1, 1)
 		}
 
 		if err != nil {
@@ -112,12 +112,12 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 		}
 
 		// If we matched some products, log them
-		for _, product := range matched {
+		for _, product := range matches {
 			log.Infof("%s has stock for %s, product: %s", retailer, filter.Term, product.Name)
 		}
 
 		// Send notifications
-		err = c.SendNotification(retailer, matched)
+		err = c.SendNotification(retailer, matches)
 
 		if err != nil {
 			log.Errorf("Unable to send notification, error: %v", err)
