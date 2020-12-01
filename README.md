@@ -6,6 +6,8 @@ This tool continually polls supported retailers for the provided filters and wil
 Supported retailers:
 - Ebuyer.com
 - Overclockers.co.uk
+- Novatech.co.uk
+- Scan.co.uk
 
 Supported notification channels:
 - SMS via AWS SNS
