@@ -127,6 +127,8 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 
 		if err != nil {
 			log.Errorln(err)
+			time.Sleep((time.Duration(filter.Interval) * time.Second))
+
 			continue
 		}
 
