@@ -192,21 +192,21 @@ func (c *Context) getPage(url string) (*goquery.Document, error) {
 
 	// We couldn't make the HTTP request
 	if err != nil {
-		return nil, fmt.Errorf("Unable to load page, error: %v", err)
+		return nil, fmt.Errorf("Unable to load %s, error: %v", url, err)
 	}
 
 	defer response.Body.Close()
 
 	// We got a non 200 response
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("Unable to load page, got status code %d", response.StatusCode)
+		return nil, fmt.Errorf("Unable to load %s, got status code %d", url, response.StatusCode)
 	}
 
 	// Decode the response body
 	body, err := goquery.NewDocumentFromReader(response.Body)
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to decode body, error: %v", err)
+		return nil, fmt.Errorf("Unable to decode body for %s, error: %v", url, err)
 	}
 
 	return body, err
