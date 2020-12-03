@@ -57,6 +57,7 @@ type Notify struct {
 type Config struct {
 	Notify      Notify        `required:"true"`
 	Filters     FilterDecoder `required:"true"`
+	CacheTTL    int           `required:"true" split_words:"true"`
 	LogLevel    string        `split_words:"true"`
 	AWSRegion   string        `required:"true" envconfig:"AWS_REGION"`
 	FromAddress string        `required:"true" split_words:"true"`
@@ -72,10 +73,9 @@ type Context struct {
 }
 
 const (
-	smsFromName     = "Stock"
-	smsFormat       = "The following products were found on %s: \n\n%s"
-	cacheKeyFormat  = "%s:%s:%f"
-	cacheTimeToLive = int64(86400)
+	smsFromName    = "Stock"
+	smsFormat      = "The following products were found on %s: \n\n%s"
+	cacheKeyFormat = "%s:%s:%f"
 )
 
 // notificationCache is a simple cache
@@ -233,7 +233,7 @@ func (c *Context) SendNotification(retailer string, matches []Product) error {
 			notificationCache[key] = time.Now()
 		} else {
 			// If the key is older than the default TTL remove it
-			if time.Since(ttl) > (time.Second * time.Duration(cacheTimeToLive)) {
+			if time.Since(ttl) > (time.Second * time.Duration(c.Config.CacheTTL)) {
 				delete(notificationCache, key)
 			}
 		}
