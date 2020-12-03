@@ -228,14 +228,10 @@ func (c *Context) SendNotification(retailer string, matches []Product) error {
 		// sent a notification
 		ttl, exists := notificationCache[key]
 
-		if !exists {
+		// Update the TTL if expired or create new cache entry
+		if (exists && time.Since(ttl) > (time.Second*time.Duration(c.Config.CacheTTL))) || !exists {
 			notifications = append(notifications, match.Name)
 			notificationCache[key] = time.Now()
-		} else {
-			// If the key is older than the default TTL remove it
-			if time.Since(ttl) > (time.Second * time.Duration(c.Config.CacheTTL)) {
-				delete(notificationCache, key)
-			}
 		}
 	}
 
