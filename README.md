@@ -38,6 +38,12 @@ Example filters configuration:
 ]
 ```
 
-To do:
-- Add more UK retailers
+## Testing
+Unit tests for retailers hit live endpoints to ensure tests only pass when the actual page spec is correct. Mocking these retailer endpoints would prove more reliable, but less accurate.
+
+```bash
+$ make test
+```
+
+## Future improvements
 - Include direct link to product in notifications
