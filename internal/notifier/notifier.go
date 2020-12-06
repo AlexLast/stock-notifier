@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ses/sesiface"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
+	"github.com/jasonlvhit/gocron"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,68 +88,57 @@ var notificationCache = map[string]time.Time{}
 func (c *Context) Start() {
 	log.Infoln("Polling retailers")
 
-	// Dummy channel to block on
-	finished := make(chan bool)
-
 	// Start polling for all filters
+	// against all retailers
 	for _, filter := range c.Config.Filters {
-		go c.PollRetailer("Ebuyer", filter)
-		go c.PollRetailer("Overclockers", filter)
-		go c.PollRetailer("Novatech", filter)
-		go c.PollRetailer("Scan", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Ebuyer", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Overclockers", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Novatech", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Scan", filter)
 	}
 
-	// Block main thread waiting for our channel
-	// that will never get a message
-	<-finished
+	<-gocron.Start()
 }
 
 // PollRetailer is the wrapper for polling a retailer
 // including the sleep interval and notification trigger
 func (c *Context) PollRetailer(retailer string, filter Filter) {
-	for {
-		log.Debugf("Polling %s for %s", retailer, filter.Term)
+	log.Debugf("Polling %s for %s", retailer, filter.Term)
 
-		// Slice of matched products
-		var err error
-		var response Response
+	// Slice of matched products
+	var err error
+	var response Response
 
-		// Check the retailers for stock
-		switch retailer {
-		case "Ebuyer":
-			response, err = c.CheckEbuyer(filter, &[]Product{}, 1, 1)
-		case "Overclockers":
-			response, err = c.CheckOverclockers(filter, &[]Product{}, 1, 1)
-		case "Novatech":
-			response, err = c.CheckNovatech(filter, &[]Product{}, 1, 1)
-		case "Scan":
-			response, err = c.CheckScan(filter)
-		}
+	// Check the retailers for stock
+	switch retailer {
+	case "Ebuyer":
+		response, err = c.CheckEbuyer(filter, &[]Product{}, 1, 1)
+	case "Overclockers":
+		response, err = c.CheckOverclockers(filter, &[]Product{}, 1, 1)
+	case "Novatech":
+		response, err = c.CheckNovatech(filter, &[]Product{}, 1, 1)
+	case "Scan":
+		response, err = c.CheckScan(filter)
+	}
 
-		if err != nil {
-			log.Errorln(err)
-			time.Sleep((time.Duration(filter.Interval) * time.Second))
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
 
-			continue
-		}
+	// Log some useful information
+	log.Debugf("%s poll for %s parsed %d products, %d matched the filter", retailer, filter.Term, response.Parsed, len(response.Matches))
 
-		// Log some useful information
-		log.Debugf("%s poll for %s parsed %d products, %d matched the filter", retailer, filter.Term, response.Parsed, len(response.Matches))
+	// If we matched some products, log them
+	for _, product := range response.Matches {
+		log.Infof("%s has stock for %s, product: %s", retailer, filter.Term, product.Name)
+	}
 
-		// If we matched some products, log them
-		for _, product := range response.Matches {
-			log.Infof("%s has stock for %s, product: %s", retailer, filter.Term, product.Name)
-		}
+	// Send notifications
+	err = c.SendNotification(retailer, response.Matches)
 
-		// Send notifications
-		err = c.SendNotification(retailer, response.Matches)
-
-		if err != nil {
-			log.Errorf("Unable to send notification, error: %v", err)
-		}
-
-		// Sleep for the filters interval
-		time.Sleep((time.Duration(filter.Interval) * time.Second))
+	if err != nil {
+		log.Errorf("Unable to send notification, error: %v", err)
 	}
 }
 
@@ -214,6 +204,46 @@ func (c *Context) getPage(url string) (*goquery.Document, error) {
 	return body, err
 }
 
+// BuildSNS returns the SNS publish input
+func BuildSNS(message string, phone *string) *sns.PublishInput {
+	return &sns.PublishInput{
+		Message:     aws.String(message),
+		PhoneNumber: phone,
+		MessageAttributes: map[string]*sns.MessageAttributeValue{
+			"AWS.SNS.SMS.SenderID": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String(smsFromName),
+			},
+			"AWS.SNS.SMS.SMSType": {
+				DataType:    aws.String("String"),
+				StringValue: aws.String("Transactional"),
+			},
+		},
+	}
+}
+
+// BuildSES returns the SES send email input
+func BuildSES(from, message string, email *string) *ses.SendEmailInput {
+	return &ses.SendEmailInput{
+		Destination: &ses.Destination{
+			ToAddresses: []*string{email},
+		},
+		Message: &ses.Message{
+			Body: &ses.Body{
+				Text: &ses.Content{
+					Charset: aws.String("UTF-8"),
+					Data:    aws.String(message),
+				},
+			},
+			Subject: &ses.Content{
+				Charset: aws.String("UTF-8"),
+				Data:    aws.String("New alert from stock-notifier"),
+			},
+		},
+		Source: aws.String(from),
+	}
+}
+
 // SendNotification will send notifications
 // for the supplied matches if the notification isnt in cache
 func (c *Context) SendNotification(retailer string, matches []Product) error {
@@ -246,42 +276,12 @@ func (c *Context) SendNotification(retailer string, matches []Product) error {
 
 		if c.Config.Notify.Phone != nil {
 			// Send the SMS
-			_, smsErr = c.SNS.Publish(&sns.PublishInput{
-				Message:     aws.String(message),
-				PhoneNumber: c.Config.Notify.Phone,
-				MessageAttributes: map[string]*sns.MessageAttributeValue{
-					"AWS.SNS.SMS.SenderID": {
-						DataType:    aws.String("String"),
-						StringValue: aws.String(smsFromName),
-					},
-					"AWS.SNS.SMS.SMSType": {
-						DataType:    aws.String("String"),
-						StringValue: aws.String("Transactional"),
-					},
-				},
-			})
+			_, smsErr = c.SNS.Publish(BuildSNS(message, c.Config.Notify.Phone))
 		}
 
 		if c.Config.Notify.Email != nil {
 			// Send the email
-			_, emailErr = c.SES.SendEmail(&ses.SendEmailInput{
-				Destination: &ses.Destination{
-					ToAddresses: []*string{c.Config.Notify.Email},
-				},
-				Message: &ses.Message{
-					Body: &ses.Body{
-						Text: &ses.Content{
-							Charset: aws.String("UTF-8"),
-							Data:    aws.String(message),
-						},
-					},
-					Subject: &ses.Content{
-						Charset: aws.String("UTF-8"),
-						Data:    aws.String("New alert from stock-notifier"),
-					},
-				},
-				Source: aws.String(c.Config.FromAddress),
-			})
+			_, emailErr = c.SES.SendEmail(BuildSES(c.Config.FromAddress, message, c.Config.Notify.Email))
 		}
 
 		// Ensure neither of these channels errored
