@@ -1,5 +1,5 @@
 # stock-notifier
-It's currently near impossible to purchase any next generation graphics cards in the UK, whether Nvidia or AMD.
+It's currently near impossible to purchase any next generation graphics cards or consoles in the UK.
 
 This tool continually polls supported retailers for the provided filters and will alert when a product becomes in stock.
 
@@ -37,6 +37,8 @@ Example filters configuration:
     }
 ]
 ```
+
+The `stock-notifier` tool is distributed via a docker image, you can use the latest build at `public.ecr.aws/alexlast/stock-notifier:latest` or pick a specific tag from the releases tab of this repository.
 
 ## Testing
 Unit tests for retailers hit live endpoints to ensure tests only pass when the actual page spec is correct. Mocking these retailer endpoints would prove more reliable, but less accurate.
