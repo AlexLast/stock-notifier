@@ -65,7 +65,7 @@ func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage in
 
 		// Ensure the product is in-stock
 		// and matches our filter and then append to our slice
-		if data.Find("button").Text() == "Add to Basket" && product.PriceMatch(filter) {
+		if data.Find("button").Text() == "Add to Basket" {
 			*matches = append(*matches, product)
 		}
 	})

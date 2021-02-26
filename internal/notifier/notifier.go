@@ -131,6 +131,9 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 		return
 	}
 
+	// Perform generic filtering
+	response.Matches = FilterProducts(response.Matches, filter)
+
 	// Log some useful information
 	log.Debugf("%s poll for %s parsed %d products, %d matched the filter", retailer, filter.Term, response.Parsed, len(response.Matches))
 
@@ -183,6 +186,21 @@ func (n *NotifyDecoder) Decode(value string) error {
 	*n = notifies
 
 	return nil
+}
+
+// FilterProducts will return a slice of filtered products
+func FilterProducts(p []Product, f Filter) []Product {
+	var filtered []Product
+
+	// Ensure all product names directly contain the search filter
+	// for better match accuracy, also ensure prices match
+	for _, product := range p {
+		if strings.Contains(strings.ToLower(product.Name), strings.ToLower(f.Term)) && product.PriceMatch(f) {
+			filtered = append(filtered, product)
+		}
+	}
+
+	return filtered
 }
 
 // GetHash returns the hash of a notification

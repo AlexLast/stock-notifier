@@ -68,7 +68,7 @@ func (c *Context) CheckOverclockers(filter Filter, matches *[]Product, cPage, fP
 
 		// Ensure the product is in-stock
 		// and matches our filter and then append to our slice
-		if strings.Contains(data.Find("p.deliverable1").Text(), "In stock") && product.PriceMatch(filter) {
+		if strings.Contains(data.Find("p.deliverable1").Text(), "In stock") {
 			*matches = append(*matches, product)
 		}
 	})

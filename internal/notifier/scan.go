@@ -56,7 +56,7 @@ func (c *Context) CheckScan(filter Filter) (Response, error) {
 
 			// Ensure the product is in-stock
 			// and matches our filter and then append to our slice
-			if strings.Contains(data.Find("div.buyButton").Text(), "Add To Basket") && product.PriceMatch(filter) {
+			if strings.Contains(data.Find("div.buyButton").Text(), "Add To Basket") {
 				matches = append(matches, product)
 			}
 		})

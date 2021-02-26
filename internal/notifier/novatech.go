@@ -66,7 +66,7 @@ func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage 
 
 		// Ensure the product is in-stock
 		// and matches our filter and then append to our slice
-		if strings.Contains(data.Find("a.basket-button").Text(), "View Product") && product.PriceMatch(filter) {
+		if strings.Contains(data.Find("a.basket-button").Text(), "View Product") {
 			*matches = append(*matches, product)
 		}
 	})
