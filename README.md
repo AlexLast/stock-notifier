@@ -8,6 +8,7 @@ Supported retailers:
 - Overclockers.co.uk
 - Novatech.co.uk
 - Scan.co.uk
+- Argos.co.uk
 
 Supported notification channels:
 - SMS via AWS SNS

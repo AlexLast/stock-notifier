@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -100,6 +101,7 @@ func (c *Context) Start() {
 		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Overclockers", filter)
 		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Novatech", filter)
 		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Scan", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Argos", filter)
 	}
 
 	<-gocron.Start()
@@ -124,6 +126,8 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 		response, err = c.CheckNovatech(filter, &[]Product{}, 1, 1)
 	case "Scan":
 		response, err = c.CheckScan(filter)
+	case "Argos":
+		response, err = c.CheckArgos(filter, &[]Product{}, 1, 1)
 	}
 
 	if err != nil {
@@ -203,9 +207,9 @@ func FilterProducts(p []Product, f Filter) []Product {
 	return filtered
 }
 
-// GetHash returns the hash of a notification
+// getHash returns the hash of a notification
 // so it can be cached
-func (n Notify) GetHash() string {
+func (n Notify) getHash() string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%v", n))))
 }
 
@@ -221,12 +225,40 @@ func (c *Context) getPage(url string) (*goquery.Document, error) {
 	defer response.Body.Close()
 
 	// We got a non 200 response
-	if response.StatusCode != 200 {
+	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Unable to load %s, got status code %d", url, response.StatusCode)
 	}
 
 	// Decode the response body
 	body, err := goquery.NewDocumentFromReader(response.Body)
+
+	if err != nil {
+		return nil, fmt.Errorf("Unable to decode body for %s, error: %v", url, err)
+	}
+
+	return body, err
+}
+
+// getRaw returns the body of an HTTP response, this should be
+// used for interacting with an API. To get a decoded HTML document
+// you should use the getPage function instead
+func (c *Context) getRaw(url string) ([]byte, error) {
+	response, err := c.HTTP.Get(url)
+
+	// We couldn't make the HTTP request
+	if err != nil {
+		return nil, fmt.Errorf("Unable to load %s, error: %v", url, err)
+	}
+
+	defer response.Body.Close()
+
+	// We got a non 200 response
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Unable to load %s, got status code %d", url, response.StatusCode)
+	}
+
+	// Read the body
+	body, err := ioutil.ReadAll(response.Body)
 
 	if err != nil {
 		return nil, fmt.Errorf("Unable to decode body for %s, error: %v", url, err)
@@ -283,7 +315,7 @@ func (c *Context) SendNotification(retailer string, matches []Product, notify No
 	// Iterate our matches and build the message
 	for _, match := range matches {
 		// Build our cache key
-		key := fmt.Sprintf(cacheKeyFormat, retailer, match.Name, match.Price, notify.GetHash())
+		key := fmt.Sprintf(cacheKeyFormat, retailer, match.Name, match.Price, notify.getHash())
 
 		// Check whether we've already
 		// sent a notification
