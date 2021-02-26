@@ -86,13 +86,16 @@ func TestDecodeFilter(t *testing.T) {
 }
 
 // TestDecodeNotify tests the custom envconfig decoder
-func TestDecodeNotify(t *testing.T) {
-	notify := new(Notify)
-	err := notify.Decode(`{"email": "test@example.org", "phone": "+123456789"}`)
+func TestDecodeNotifies(t *testing.T) {
+	notify := new(NotifyDecoder)
+	err := notify.Decode(`[{"email": "test@example.org", "phone": "+123456789"}]`)
 
 	assert.Nil(t, err)
-	assert.Equal(t, "test@example.org", *notify.Email)
-	assert.Equal(t, "+123456789", *notify.Phone)
+
+	for _, n := range *notify {
+		assert.Equal(t, "test@example.org", *n.Email)
+		assert.Equal(t, "+123456789", *n.Phone)
+	}
 }
 
 // TestGetPage tests the getPage function
@@ -168,15 +171,17 @@ func TestSendNotification(t *testing.T) {
 
 	// Build some test config
 	c.Config = &Config{
-		Notify: Notify{
-			Email: aws.String("test@example.com"),
-			Phone: aws.String("+12345678"),
+		Notify: []Notify{
+			{
+				Email: aws.String("test@example.com"),
+				Phone: aws.String("+12345678"),
+			},
 		},
 		FromAddress: "test@example.com",
 	}
 
 	// Send the notificatiom
-	err := c.SendNotification("test", []Product{{Name: "test", Price: 100}})
+	err := c.SendNotification("test", []Product{{Name: "test", Price: 100}}, c.Config.Notify[0])
 	assert.Nil(t, err)
 
 	// Test AWS error is surfaced
@@ -185,13 +190,13 @@ func TestSendNotification(t *testing.T) {
 	}
 
 	// Send the notification again
-	err = c.SendNotification("test", []Product{{Name: "test", Price: 100}})
+	err = c.SendNotification("test", []Product{{Name: "test", Price: 100}}, c.Config.Notify[0])
 	assert.NotNil(t, err)
 
 	// With phone not set the error
 	// should no longer be surfaced
-	c.Config.Notify.Phone = nil
+	c.Config.Notify[0].Phone = nil
 
-	err = c.SendNotification("test", []Product{{Name: "test", Price: 100}})
+	err = c.SendNotification("test", []Product{{Name: "test", Price: 100}}, c.Config.Notify[0])
 	assert.Nil(t, err)
 }

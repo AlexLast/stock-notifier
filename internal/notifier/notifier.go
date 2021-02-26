@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,10 +54,14 @@ type Notify struct {
 	Phone *string `json:"phone"`
 }
 
+// NotifyDecoder is a type
+// used for an envconfig custom decoder
+type NotifyDecoder []Notify
+
 // Config defines the configuration
 // for notifier
 type Config struct {
-	Notify      Notify        `required:"true"`
+	Notify      NotifyDecoder `required:"true"`
 	Filters     FilterDecoder `required:"true"`
 	CacheTTL    int           `required:"true" split_words:"true"`
 	LogLevel    string        `split_words:"true"`
@@ -76,7 +81,7 @@ type Context struct {
 const (
 	smsFromName    = "Stock"
 	smsFormat      = "The following products were found on %s: \n\n%s"
-	cacheKeyFormat = "%s:%s:%f"
+	cacheKeyFormat = "%s:%s:%f:%s"
 )
 
 // notificationCache is a simple cache
@@ -135,10 +140,12 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 	}
 
 	// Send notifications
-	err = c.SendNotification(retailer, response.Matches)
+	for _, notify := range c.Config.Notify {
+		err = c.SendNotification(retailer, response.Matches, notify)
 
-	if err != nil {
-		log.Errorf("Unable to send notification, error: %v", err)
+		if err != nil {
+			log.Errorf("Unable to send notification, error: %v", err)
+		}
 	}
 }
 
@@ -160,22 +167,28 @@ func (f *FilterDecoder) Decode(value string) error {
 	return nil
 }
 
-// Decode is a custom decoder for filters
+// Decode is a custom decoder for notifies
 // required by envconfig
-func (n *Notify) Decode(value string) error {
-	notify := new(Notify)
+func (n *NotifyDecoder) Decode(value string) error {
+	var notifies []Notify
 
-	// Unmarshal into notify
-	err := json.Unmarshal([]byte(value), notify)
+	// Unmarshal into notifies
+	err := json.Unmarshal([]byte(value), &notifies)
 
 	if err != nil {
-		return fmt.Errorf("Invalid notify JSON, error: %v", err)
+		return fmt.Errorf("Invalid notification JSON, error: %v", err)
 	}
 
-	// Set the notify value
-	*n = *notify
+	// Set the notifies value
+	*n = notifies
 
 	return nil
+}
+
+// GetHash returns the hash of a notification
+// so it can be cached
+func (n Notify) GetHash() string {
+	return fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%v", n))))
 }
 
 // getPage returns the decoded HTML ready for parsing
@@ -246,13 +259,13 @@ func BuildSES(from, message string, email *string) *ses.SendEmailInput {
 
 // SendNotification will send notifications
 // for the supplied matches if the notification isnt in cache
-func (c *Context) SendNotification(retailer string, matches []Product) error {
+func (c *Context) SendNotification(retailer string, matches []Product, notify Notify) error {
 	var notifications []string
 
 	// Iterate our matches and build the message
 	for _, match := range matches {
 		// Build our cache key
-		key := fmt.Sprintf(cacheKeyFormat, retailer, match.Name, match.Price)
+		key := fmt.Sprintf(cacheKeyFormat, retailer, match.Name, match.Price, notify.GetHash())
 
 		// Check whether we've already
 		// sent a notification
@@ -274,14 +287,14 @@ func (c *Context) SendNotification(retailer string, matches []Product) error {
 		var smsErr error
 		var emailErr error
 
-		if c.Config.Notify.Phone != nil {
+		if notify.Phone != nil {
 			// Send the SMS
-			_, smsErr = c.SNS.Publish(BuildSNS(message, c.Config.Notify.Phone))
+			_, smsErr = c.SNS.Publish(BuildSNS(message, notify.Phone))
 		}
 
-		if c.Config.Notify.Email != nil {
+		if notify.Email != nil {
 			// Send the email
-			_, emailErr = c.SES.SendEmail(BuildSES(c.Config.FromAddress, message, c.Config.Notify.Email))
+			_, emailErr = c.SES.SendEmail(BuildSES(c.Config.FromAddress, message, notify.Email))
 		}
 
 		// Ensure neither of these channels errored
