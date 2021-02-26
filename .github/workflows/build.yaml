@@ -28,7 +28,7 @@ jobs:
         STRIPPED_TAG=$(echo $IMAGE_TAG | sed 's|refs/tags/||')
         docker buildx create --name builder
         docker buildx use builder
-        docker buildx build --platform linux/amd64,linux/arm64,linux/arm -t $ECR_REGISTRY/$ECR_REPOSITORY:$STRIPPED_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest --push .
+        docker buildx build --platform linux/amd64,linux/arm64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$STRIPPED_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest --push .
     - name: Logout of ECR
       if: always()
       run: docker logout ${{ steps.login-ecr.outputs.registry }}
