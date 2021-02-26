@@ -1,4 +1,4 @@
-FROM golang:1.15.5 as builder
+FROM golang:1.16 as builder
 
 WORKDIR /go/src/github.com/alexlast/stock-notifier
 
@@ -6,21 +6,15 @@ COPY go.mod .
 COPY cmd/ cmd/
 COPY internal/ internal/
 
-RUN GO111MODULE=on GOOS=linux GOARCH=amd64 go build -a -o notifier github.com/alexlast/stock-notifier/cmd/notifier
+ARG TARGETOS
+ARG TARGETARCH
 
-FROM ubuntu:20.04
+RUN CGO_ENABLED=0 GO111MODULE=on GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -a -o notifier github.com/alexlast/stock-notifier/cmd/notifier
+
+FROM alpine:3.12
 
 WORKDIR /opt/notifier
 
 COPY --from=builder /go/src/github.com/alexlast/stock-notifier/notifier .
-
-RUN apt-get update && \
-    apt-get -y dist-upgrade && \
-    apt-get install -y ca-certificates && \
-    rm -rf /var/cache/apt/lists
-
-RUN useradd -ms /bin/bash notifier
-
-USER notifier
 
 ENTRYPOINT ["./notifier"]
