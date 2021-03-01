@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -32,8 +33,9 @@ type Filter struct {
 // for any product returned by
 // any retailer
 type Product struct {
-	Name  string
-	Price float64
+	Name    string
+	Price   float64
+	InStock bool
 }
 
 // Response defines the structure
@@ -97,11 +99,12 @@ func (c *Context) Start() {
 	// Start polling for all filters
 	// against all retailers
 	for _, filter := range c.Config.Filters {
-		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Ebuyer", filter)
-		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Overclockers", filter)
-		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Novatech", filter)
-		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Scan", filter)
-		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Argos", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Ebuyer.com", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Overclockers.co.uk", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Novatech.co.uk", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Scan.co.uk", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Argos.co.uk", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Very.co.uk", filter)
 	}
 
 	<-gocron.Start()
@@ -118,16 +121,18 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 
 	// Check the retailers for stock
 	switch retailer {
-	case "Ebuyer":
-		response, err = c.CheckEbuyer(filter, &[]Product{}, 1, 1)
-	case "Overclockers":
-		response, err = c.CheckOverclockers(filter, &[]Product{}, 1, 1)
-	case "Novatech":
-		response, err = c.CheckNovatech(filter, &[]Product{}, 1, 1)
-	case "Scan":
-		response, err = c.CheckScan(filter)
-	case "Argos":
-		response, err = c.CheckArgos(filter, &[]Product{}, 1, 1)
+	case "Ebuyer.com":
+		response, err = c.FetchEbuyer(filter, &[]Product{}, 1, 1)
+	case "Overclockers.co.uk":
+		response, err = c.FetchOverclockers(filter, &[]Product{}, 1, 1)
+	case "Novatech.co.uk":
+		response, err = c.FetchNovatech(filter, &[]Product{}, 1, 1)
+	case "Scan.co.uk":
+		response, err = c.FetchScan(filter)
+	case "Argos.co.uk":
+		response, err = c.FetchArgos(filter, &[]Product{}, 1, 1)
+	case "Very.co.uk":
+		response, err = c.FetchVery(filter, &[]Product{}, 1, 1)
 	}
 
 	if err != nil {
@@ -135,15 +140,17 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 		return
 	}
 
-	// Perform generic filtering
+	// Set parsed count and
+	// perform generic filtering
+	response.Parsed = len(response.Matches)
 	response.Matches = FilterProducts(response.Matches, filter)
 
 	// Log some useful information
-	log.Debugf("%s poll for %s parsed %d products, %d matched the filter", retailer, filter.Term, response.Parsed, len(response.Matches))
+	log.Debugf("Poll of %s for %s parsed %d products, %d matched the filter", retailer, filter.Term, response.Parsed, len(response.Matches))
 
 	// If we matched some products, log them
 	for _, product := range response.Matches {
-		log.Infof("%s has stock for %s, product: %s", retailer, filter.Term, product.Name)
+		log.Infof("Retailer %s has stock for %s, product: %s", retailer, filter.Term, product.Name)
 	}
 
 	// Send notifications
@@ -199,7 +206,7 @@ func FilterProducts(p []Product, f Filter) []Product {
 	// Ensure all product names directly contain the search filter
 	// for better match accuracy, also ensure prices match
 	for _, product := range p {
-		if strings.Contains(strings.ToLower(product.Name), strings.ToLower(f.Term)) && product.PriceMatch(f) {
+		if strings.Contains(strings.ToLower(product.Name), strings.ToLower(f.Term)) && product.PriceMatch(f) && product.InStock {
 			filtered = append(filtered, product)
 		}
 	}
@@ -215,7 +222,11 @@ func (n Notify) getHash() string {
 
 // getPage returns the decoded HTML ready for parsing
 func (c *Context) getPage(url string) (*goquery.Document, error) {
-	response, err := c.HTTP.Get(url)
+	// Build a new request and assign a random user agent
+	request, err := http.NewRequest("GET", url, bytes.NewBuffer(nil))
+	request.Header.Add("User-agent", getUserAgent())
+
+	response, err := c.HTTP.Do(request)
 
 	// We couldn't make the HTTP request
 	if err != nil {

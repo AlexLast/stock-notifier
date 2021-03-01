@@ -8,7 +8,7 @@ import (
 
 // TestCheckNovatech ensures the function is parsing
 // products correctly, the retailer is not mocked
-func TestCheckNovatech(t *testing.T) {
+func TestFetchNovatech(t *testing.T) {
 	c := GetTestContext()
 
 	// Test filter that should return products
@@ -20,7 +20,9 @@ func TestCheckNovatech(t *testing.T) {
 	}
 
 	// Check the retailer
-	response, err := c.CheckNovatech(filter, &[]Product{}, 1, 1)
+	response, err := c.FetchNovatech(filter, &[]Product{}, 1, 1)
+	response.Parsed = len(response.Matches)
+	response.Matches = FilterProducts(response.Matches, filter)
 
 	assert.Nil(t, err)
 	assert.NotEqual(t, 0, response.Parsed)

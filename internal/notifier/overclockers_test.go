@@ -8,7 +8,7 @@ import (
 
 // TestCheckOverclockers ensures the function is parsing
 // products correctly, the retailer is not mocked
-func TestCheckOverclockers(t *testing.T) {
+func TestFetchOverclockers(t *testing.T) {
 	c := GetTestContext()
 
 	// Test filter that should return products
@@ -20,7 +20,9 @@ func TestCheckOverclockers(t *testing.T) {
 	}
 
 	// Check the retailer
-	response, err := c.CheckOverclockers(filter, &[]Product{}, 1, 1)
+	response, err := c.FetchOverclockers(filter, &[]Product{}, 1, 1)
+	response.Parsed = len(response.Matches)
+	response.Matches = FilterProducts(response.Matches, filter)
 
 	assert.Nil(t, err)
 	assert.NotEqual(t, 0, response.Parsed)

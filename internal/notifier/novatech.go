@@ -16,8 +16,8 @@ const (
 	novatechSearch = "https://www.novatech.co.uk/search.html?search=%s&pg=%d&i=200"
 )
 
-// CheckNovatech will check Novatech for the specified filter
-func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
+// FetchNovatech will fetch results from Novatech.co.uk for the specified filter
+func (c *Context) FetchNovatech(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
 	response := Response{}
 
 	// Get the page contents and our goquery document
@@ -67,8 +67,10 @@ func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage 
 		// Ensure the product is in-stock
 		// and matches our filter and then append to our slice
 		if strings.Contains(data.Find("a.basket-button").Text(), "View Product") {
-			*matches = append(*matches, product)
+			product.InStock = true
 		}
+
+		*matches = append(*matches, product)
 	})
 
 	cPage++
@@ -79,7 +81,7 @@ func (c *Context) CheckNovatech(filter Filter, matches *[]Product, cPage, fPage 
 		time.Sleep(time.Duration(novatechSleep) * time.Second)
 
 		// Call this function recursively
-		_, err := c.CheckNovatech(filter, matches, cPage, fPage)
+		_, err := c.FetchNovatech(filter, matches, cPage, fPage)
 
 		if err != nil {
 			return response, err

@@ -50,8 +50,8 @@ type argosWrapper struct {
 	}
 }
 
-// CheckArgos will check Argos for the specified filter
-func (c *Context) CheckArgos(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
+// FetchArgos will fetch results from Argos.co.uk for the specified filter
+func (c *Context) FetchArgos(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
 	response := Response{}
 	argosResponse := new(argosWrapper)
 
@@ -75,18 +75,11 @@ func (c *Context) CheckArgos(filter Filter, matches *[]Product, cPage, fPage int
 
 	// Iterate products and append to matches
 	for _, product := range argosResponse.Data.Response.Data {
-		// Increment the parsed counter
-		response.Parsed++
-
-		// Ensure the product is in stock
-		if !product.Attributes.Deliverable {
-			continue
-		}
-
 		// Convert to product type
 		p := Product{
-			Name:  product.Attributes.Name,
-			Price: product.Attributes.Price,
+			Name:    product.Attributes.Name,
+			Price:   product.Attributes.Price,
+			InStock: product.Attributes.Deliverable,
 		}
 
 		// Append to our matches
@@ -101,7 +94,7 @@ func (c *Context) CheckArgos(filter Filter, matches *[]Product, cPage, fPage int
 		time.Sleep(time.Duration(argosSleep) * time.Second)
 
 		// Call this function recursively
-		_, err := c.CheckArgos(filter, matches, cPage, fPage)
+		_, err := c.FetchArgos(filter, matches, cPage, fPage)
 
 		if err != nil {
 			return response, err

@@ -9,6 +9,7 @@ Supported retailers:
 - Novatech.co.uk
 - Scan.co.uk
 - Argos.co.uk
+- Very.co.uk
 
 Supported notification channels:
 - SMS via AWS SNS
@@ -31,10 +32,10 @@ Example filters configuration:
         "maxPrice": 800
     }, 
     {
-        "term": "RX 6800", 
+        "term": "Playstation 5",
         "interval": 60, 
-        "minPrice": 500, 
-        "maxPrice": 800
+        "minPrice": 400,
+        "maxPrice": 600
     }
 ]
 ```

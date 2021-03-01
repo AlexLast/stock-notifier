@@ -14,8 +14,8 @@ const (
 	scanSearch = "https://www.scan.co.uk/search?q=%s"
 )
 
-// CheckScan will check Scan for the specified filter
-func (c *Context) CheckScan(filter Filter) (Response, error) {
+// FetchScan will fetch results from Scan.co.uk for the specified filter
+func (c *Context) FetchScan(filter Filter) (Response, error) {
 	response := Response{}
 
 	// Get the page contents and our goquery document
@@ -57,8 +57,10 @@ func (c *Context) CheckScan(filter Filter) (Response, error) {
 			// Ensure the product is in-stock
 			// and matches our filter and then append to our slice
 			if strings.Contains(data.Find("div.buyButton").Text(), "Add To Basket") {
-				matches = append(matches, product)
+				product.InStock = true
 			}
+
+			matches = append(matches, product)
 		})
 	})
 

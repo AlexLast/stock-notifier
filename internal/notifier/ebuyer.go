@@ -16,8 +16,8 @@ const (
 	ebuyerSearch = "https://www.ebuyer.com/search?q=%s&page=%d"
 )
 
-// CheckEbuyer will check Ebuyer for the specified filter
-func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
+// FetchEbuyer will fetch results from Ebuyer.com for the specified filter
+func (c *Context) FetchEbuyer(filter Filter, matches *[]Product, cPage, fPage int) (Response, error) {
 	response := Response{}
 
 	// Get the page contents and our goquery document
@@ -66,8 +66,10 @@ func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage in
 		// Ensure the product is in-stock
 		// and matches our filter and then append to our slice
 		if data.Find("button").Text() == "Add to Basket" {
-			*matches = append(*matches, product)
+			product.InStock = true
 		}
+
+		*matches = append(*matches, product)
 	})
 
 	cPage++
@@ -78,7 +80,7 @@ func (c *Context) CheckEbuyer(filter Filter, matches *[]Product, cPage, fPage in
 		time.Sleep(time.Duration(ebuyerSleep) * time.Second)
 
 		// Call this function recursively
-		_, err := c.CheckEbuyer(filter, matches, cPage, fPage)
+		_, err := c.FetchEbuyer(filter, matches, cPage, fPage)
 
 		if err != nil {
 			return response, err
