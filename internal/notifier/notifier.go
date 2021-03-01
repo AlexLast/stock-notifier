@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/alexlast/stock-notifier/internal/metrics"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/ses/sesiface"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 	"github.com/jasonlvhit/gocron"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -137,6 +139,11 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 
 	if err != nil {
 		log.Errorln(err)
+
+		// Increment the failed counter
+		metrics.FailedFetches.With(
+			prometheus.Labels{"retailer": retailer}).Inc()
+
 		return
 	}
 
@@ -144,6 +151,12 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 	// perform generic filtering
 	response.Parsed = len(response.Matches)
 	response.Matches = FilterProducts(response.Matches, filter)
+
+	// Increment our success counters
+	metrics.SuccessfulFetches.With(
+		prometheus.Labels{"retailer": retailer}).Inc()
+	metrics.ParsedProducts.With(
+		prometheus.Labels{"retailer": retailer}).Add(float64(response.Parsed))
 
 	// Log some useful information
 	log.Debugf("Poll of %s for %s parsed %d products, %d matched the filter", retailer, filter.Term, response.Parsed, len(response.Matches))

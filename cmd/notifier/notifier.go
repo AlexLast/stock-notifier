@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -61,5 +62,9 @@ func main() {
 	log.Infoln("Starting stock-notifier")
 
 	// Start polling
-	c.Start()
+	go c.Start()
+
+	// Serve prometheus metrics
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(":9125", nil)
 }
