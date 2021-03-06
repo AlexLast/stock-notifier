@@ -107,6 +107,7 @@ func (c *Context) Start() {
 		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Scan.co.uk", filter)
 		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Argos.co.uk", filter)
 		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Very.co.uk", filter)
+		gocron.Every(uint64(filter.Interval)).Seconds().Do(c.PollRetailer, "Currys.co.uk", filter)
 	}
 
 	<-gocron.Start()
@@ -135,6 +136,8 @@ func (c *Context) PollRetailer(retailer string, filter Filter) {
 		response, err = c.FetchArgos(filter, &[]Product{}, 1, 1)
 	case "Very.co.uk":
 		response, err = c.FetchVery(filter, &[]Product{}, 1, 1)
+	case "Currys.co.uk":
+		response, err = c.FetchCurrys(filter, &[]Product{}, 1, 1)
 	}
 
 	if err != nil {

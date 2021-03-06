@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/alexlast/stock-notifier/internal/notifier"
 	"github.com/aws/aws-sdk-go/aws"
@@ -52,9 +53,11 @@ func main() {
 
 	// Build new clients
 	c := &notifier.Context{
-		SES:    ses.New(session),
-		SNS:    sns.New(session),
-		HTTP:   http.DefaultClient,
+		SES: ses.New(session),
+		SNS: sns.New(session),
+		HTTP: &http.Client{
+			Timeout: (time.Second * 10),
+		},
 		Config: config,
 	}
 

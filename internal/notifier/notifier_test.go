@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ses"
@@ -51,7 +52,9 @@ func GetTestContext() *Context {
 		SNS: &mockSNSClient{
 			PublishReturnValue: &sns.PublishOutput{},
 		},
-		HTTP: http.DefaultClient,
+		HTTP: &http.Client{
+			Timeout: (time.Second * 5),
+		},
 	}
 }
 
