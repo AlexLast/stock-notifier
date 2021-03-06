@@ -10,6 +10,7 @@ Supported retailers:
 - Scan.co.uk
 - Argos.co.uk
 - Very.co.uk
+- Currys.co.uk
 
 Supported notification channels:
 - SMS via AWS SNS
